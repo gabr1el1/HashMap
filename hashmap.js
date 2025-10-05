@@ -5,10 +5,13 @@ export default function HashMap(){
         
     const _loadFactor = 0.75
     const _defaultCapacity = 16
-    let _capacity = _defaultCapacity
-    let _buckets = new Array(_capacity)
+    let _capacity = _defaultCapacity 
+    let _buckets = _init_buckets(_capacity)
     let _length = 0
 
+    function _init_buckets(size){
+        return Array.apply(null,new Array(size)).map(element=>new LinkedList())
+    }
     function _hash(key){
         let hashCode = 0
 
@@ -22,23 +25,19 @@ export default function HashMap(){
     }
 
     function set(key,value){
-        try {
+        try 
+        {
             let index = _checkIndex(key)
-            if(!_buckets[index]){
-                let list = new LinkedList()
-                list.append(key,value)
-                _buckets[index] = list
+            const prevSize = _buckets[index].size()
+            _buckets[index].append(key,value)
+            if(prevSize<_buckets[index].size()){
                 _length+=1
-            }else{
-                const prevSize = _buckets[index].size()
-                _buckets[index].append(key,value)
-                if(prevSize<_buckets[index].size()){
-                    _length+=1
-                }
-
             }
-
-            _checkGrowth()
+            if(_length>_capacity*_loadFactor){
+                    _capacity = _capacity * 2
+                    _length = 0
+                    _remap()
+                }
 
         } catch (error) {
             console.log(error.message)
@@ -77,17 +76,21 @@ export default function HashMap(){
 
     function remove(key){
         let index = _checkIndex(key)
-        if(!_buckets[index]){
-            return false
-        }else{
-            if(_buckets[index].removeKey(key)){
-                _length-=1
-                return true
-            }else{
-                return false
+        
+        if(_buckets[index].removeKey(key)){
+            _length-=1
+            if(_length<=_capacity/2*_loadFactor){
+                _capacity = _capacity / 2
+                _length = 0
+                _remap()
             }
+            return true
+        }else{
+                return false
             
         }
+
+        
     }
 
     
@@ -100,9 +103,11 @@ export default function HashMap(){
         return _capacity
     }
 
+
+
     function clear(){
         _capacity = _defaultCapacity
-        _buckets = new Array(this._capacity)
+        _buckets = _init_buckets(_capacity)
         _length = 0
     }
 
@@ -151,22 +156,24 @@ export default function HashMap(){
         return entries
     }
 
+
     function toString(){
         let string = ''
         _buckets.forEach(bucket=>{
-            if(bucket){
-                let current = bucket.head()
-                while (current){
-                    string+=`( ${current.key} : ${current.value}) => `
-                }
-                string+=current+'\n'
-
-            }   
+            let current = bucket.head()
+            while (current){
+                string+=`( ${current.key} : ${current.value}) => `
+                current = current.nextNode
+            }
+            string+=current+'\n'
         })
-        return string
-
-        
+        return string  
     }
+
+    function buckets(){
+        return _buckets
+    }
+    
 
     function _checkIndex(key){
         let index = _hash(key)
@@ -176,24 +183,19 @@ export default function HashMap(){
         return index
     }
 
-    function _checkGrowth(){
-        if(_length>_capacity * _loadFactor){
-            let doubleBuckets = new Array(_capacity*2)
-            let copyBuckets = [..._buckets]
-            _buckets = doubleBuckets
-            _capacity = _capacity * 2 
-            _length = 0
-            copyBuckets.forEach(bucket=>{
-                if(bucket){
-                    let node = bucket.head()
-                    while(node){
-                        set(node.key, node.value)
-                        node = node.nextNode
-                    }
+    function _remap(){
+        let copy_buckets = [..._buckets]
+        _buckets = _init_buckets(_capacity)
+        copy_buckets.forEach(bucket=>{
+            if(bucket){
+                let node = bucket.head()
+                while(node){
+                    set(node.key, node.value)
+                    node = node.nextNode
                 }
-            })
-        }
+            }
+        })
     }
 
-    return {set, get, has, remove, length, capacity, clear, keys, values, entries, toString, clear}
+    return {set, get, has, remove, length, capacity, clear, keys, values, entries, buckets, toString, clear}
 }
